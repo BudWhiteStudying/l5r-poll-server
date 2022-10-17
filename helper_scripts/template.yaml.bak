@@ -1,0 +1,238 @@
+Description: 'server
+
+  Sample SAM Template for server
+
+  '
+Globals:
+  Function:
+    Layers:
+    - !Ref 'SharedUtilitiesLayer'
+    - !Ref 'DataModelLayer'
+    Timeout: 5
+  Api:
+    Cors:
+      AllowCredentials: false
+      AllowHeaders: "'*'"
+      AllowMethods: "'GET,PUT,POST'"
+      AllowOrigin: "'http://l5r-poll-client.s3-website.eu-south-1.amazonaws.com'"
+Outputs:
+  PollConfigApi:
+    Description: API Gateway endpoint URL for the Prod stage
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/poll-config/'
+  PollResponseApi:
+    Description: API Gateway endpoint URL for the Prod stage
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/poll-response/'
+  GetPollConfigFunction:
+    Description: Lambda Function ARN
+    Value: !GetAtt 'GetPollConfigFunction.Arn'
+  SubmitPollResponseFunction:
+    Description: Lambda Function ARN
+    Value: !GetAtt 'SubmitPollResponseFunction.Arn'
+  BasicIamRole:
+    Description: Lambda function IAM Role with only CW logs permissions
+    Value: !GetAtt 'BasicIamRole.Arn'
+  InvokeLambdasAndQueryDynamoDBIamRole:
+    Description: Lambda function IAM Role with DynamoDB read-only permissions and
+      CW logs permissions
+    Value: !GetAtt 'InvokeLambdasAndQueryDynamoDBIamRole.Arn'
+  InvokeLambdasAndSESIamRole:
+    Description: Lambda function IAM Role with DynamoDB read-only permissions and
+      CW logs permissions
+    Value: !GetAtt 'InvokeLambdasAndSESIamRole.Arn'
+  InvokeLambdasAndWriteToDynamoDBIamRole:
+    Description: Lambda function IAM Role with DynamoDB read and write permissions,
+      and CW logs permissions
+    Value: !GetAtt 'InvokeLambdasAndWriteToDynamoDBIamRole.Arn'
+  InvokeLambdasIamRole:
+    Description: Lambda function IAM Role with Lambda.invoke permission and CW logs
+      permissions
+    Value: !GetAtt 'InvokeLambdasIamRole.Arn'
+  QueryDynamoDBIamRole:
+    Description: Lambda function IAM Role with DynamoDB read-only permissions and
+      CW logs permissions
+    Value: !GetAtt 'QueryDynamoDBIamRole.Arn'
+  WriteToDynamoDBIamRole:
+    Description: Lambda function IAM Role with DynamoDB read and write permissions,
+      and CW logs permissions
+    Value: !GetAtt 'WriteToDynamoDBIamRole.Arn'
+Resources:
+  GetPollConfigFunction:
+    Properties:
+      Architectures:
+      - x86_64
+      Events:
+        GetPollConfig:
+          Properties:
+            Method: get
+            Path: /poll-config
+          Type: Api
+      Handler: app.lambda_handler
+      FunctionName: GetPollConfigFunction
+      Role: !GetAtt 'QueryDynamoDBIamRole.Arn'
+      Runtime: python3.9
+      CodeUri: get_poll_config/
+    Type: AWS::Serverless::Function
+  SubmitPollResponseFunction:
+    Properties:
+      Architectures:
+      - x86_64
+      Events:
+        SubmitPollResponse:
+          Properties:
+            Method: post
+            Path: /poll-response
+          Type: Api
+      Handler: app.lambda_handler
+      FunctionName: SubmitPollResponseFunction
+      Role: !GetAtt 'WriteToDynamoDBIamRole.Arn'
+      Runtime: python3.9
+      CodeUri: submit_poll_response/
+    Type: AWS::Serverless::Function
+  DataModelLayer:
+    Properties:
+      Description: Data model of the l5r_poll_server app
+      LicenseInfo: MIT
+      LayerName: data-model
+      RetentionPolicy: Retain
+      CompatibleRuntimes:
+      - python3.9
+      ContentUri: lambda_layers/data_model
+    Type: AWS::Serverless::LayerVersion
+  SharedUtilitiesLayer:
+    Properties:
+      Description: Shared utilities for the l5r_poll_server app
+      LicenseInfo: MIT
+      LayerName: shared-utilities
+      RetentionPolicy: Retain
+      CompatibleRuntimes:
+      - python3.9
+      ContentUri: lambda_layers/shared_utils
+    Type: AWS::Serverless::LayerVersion
+  BasicIamRole:
+    Description: Lambda function IAM Role with only CW logs permissions
+    Properties:
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      RoleName: BasicIamRole
+    Type: AWS::IAM::Role
+  InvokeLambdasAndQueryDynamoDBIamRole:
+    Description: Lambda function IAM Role with Lambda.invoke permission,  DynamoDB
+      read-only permissions, and CW logs permissions
+    Properties:
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBReadOnlyAccess
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      RoleName: InvokeLambdasAndQueryDynamoDBIamRole
+    Type: AWS::IAM::Role
+  InvokeLambdasAndSESIamRole:
+    Description: Lambda function IAM Role with SES full-access permissions
+    Properties:
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
+      - arn:aws:iam::aws:policy/AmazonSESFullAccess
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      RoleName: InvokeLambdasAndSESIamRole
+    Type: AWS::IAM::Role
+  InvokeLambdasAndWriteToDynamoDBIamRole:
+    Description: Lambda function IAM Role with DynamoDB read and write permissions,
+      CW logs permissions, and Lambda invokeFunction permissions
+    Properties:
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      RoleName: InvokeLambdasAndWriteToDynamoDBIamRole
+    Type: AWS::IAM::Role
+  InvokeLambdasIamRole:
+    Description: Lambda function IAM Role with Lambda.invoke permission and CW logs
+      permissions
+    Properties:
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      RoleName: InvokeLambdasIamRole
+    Type: AWS::IAM::Role
+  QueryDynamoDBIamRole:
+    Description: Lambda function IAM Role with DynamoDB read-only permissions and
+      CW logs permissions
+    Properties:
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBReadOnlyAccess
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      RoleName: QueryDynamoDBIamRole
+    Type: AWS::IAM::Role
+  WriteToDynamoDBIamRole:
+    Description: Lambda function IAM Role with DynamoDB read and write permissions
+      and CW logs permissions
+    Properties:
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      RoleName: WriteToDynamoDBIamRole
+    Type: AWS::IAM::Role
+Transform: AWS::Serverless-2016-10-31
+AWSTemplateFormatVersion: '2010-09-09'
